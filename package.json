@@ -1,0 +1,51 @@
+{
+  "name": "dsh-sidebar-git",
+  "version": "0.1.0",
+  "description": "DSH 插件：右侧栏里的 Git 页签——跟随当前会话的仓库，看变更与 diff、暂存提交、切分支、推拉远端；危险操作分级把守。",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-sidebar-right"
+      ]
+    }
+  },
+  "files": [
+    "lib",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek",
+    "deepseek-harness",
+    "harness",
+    "cordis",
+    "sidebar",
+    "git",
+    "sidebar-git"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.15"
+  },
+  "scripts": {
+    "test": "node --test test/",
+    "install:profile": "node tools/install-into-profile.mjs",
+    "install:profile:dry": "node tools/install-into-profile.mjs --dry-run",
+    "uninstall:profile": "node tools/install-into-profile.mjs --uninstall",
+    "smoke": "node tools/smoke.mjs"
+  }
+}
