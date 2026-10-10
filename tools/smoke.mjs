@@ -158,6 +158,11 @@ try {
   check('GET /log 首页含新提交', log.commits?.[0]?.subject === 'smoke: 提交一笔')
   check('分页 done 标记', log.done === true || log.commits.length === 2)
 
+  // commit files (history detail)
+  const detail = await get(`/commitfiles?sessionId=${SMOKE_SESSION}&commit=${committed.body.commit.hash}`)
+  check('GET /commitfiles 列出提交文件', detail.body.ok === true && detail.body.files?.length >= 1)
+  check('commitfiles 拒绝非 hash', (await get(`/commitfiles?sessionId=${SMOKE_SESSION}&commit=--upload-pack`)).body.error?.code === 'BAD_ARGS')
+
   // diff
   const diff = (await get(`/diff?sessionId=${SMOKE_SESSION}&path=alpha.txt&area=worktree`)).body
   check('GET /diff 工作树 diff 有 hunk', diff.ok === true && diff.hunks?.length >= 1)

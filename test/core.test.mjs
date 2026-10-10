@@ -641,6 +641,22 @@ describe('routes (integration with a real git fixture)', () => {
     void spawn // imported for the shell helper parity; not used directly here
   })
 
+  it('GET /commitfiles lists one commit’s files (root commit included) and refuses junk', async () => {
+    // the fixture’s first commit added alpha.txt, sub/inner.js, deep/nested/plum.md, bin.dat
+    await shell(fixture.work, 'git commit -qm nothing 2>/dev/null || true')
+    const log = (await drive(handler, 'GET', '/dsh-sidebar-git/log?sessionId=s1&limit=1')).body
+    const head = log.commits[0]
+    const detail = (await drive(handler, 'GET', `/dsh-sidebar-git/commitfiles?sessionId=s1&commit=${head.hash}`)).body
+    assert.equal(detail.ok, true)
+    const paths = detail.files.map((file) => file.path)
+    assert.ok(paths.includes('alpha.txt'), JSON.stringify(paths))
+
+    const bad = (await drive(handler, 'GET', '/dsh-sidebar-git/commitfiles?sessionId=s1&commit=--upload-pack')).body
+    assert.equal(bad.error.code, 'BAD_ARGS')
+    const shortHash = (await drive(handler, 'GET', `/dsh-sidebar-git/commitfiles?sessionId=s1&commit=${head.short}`)).body
+    assert.equal(shortHash.ok, true)
+  })
+
   it('GET /branches and /stashes answer lists', async () => {
     const branches = (await drive(handler, 'GET', '/dsh-sidebar-git/branches?sessionId=s1')).body
     assert.ok(branches.branches.some((row) => row.name === 'main' && row.current))
@@ -697,8 +713,10 @@ describe('routes (integration with a real git fixture)', () => {
     assert.equal(body.error.code, 'BAD_OP')
   })
 
-  it('the T2 gate: stash push → prepare pop → confirm pop restores the file', async () => {
-    await shell(fixture.work, 'echo stashme > stashme.txt')
+  it('the T2 gate: stash push → prepare pop → confirm pop restores the work', async () => {
+    // A tracked modification is what stash actually saves (untracked files stay
+    // put without -u), so this test manufactures its own.
+    await shell(fixture.work, 'echo stashme > stashme.txt && echo stashed-line >> alpha.txt')
     const pushed = (await drive(handler, 'POST', '/dsh-sidebar-git/stash', { sessionId: 's1', action: 'push', message: 'demo' })).body
     assert.equal(pushed.ok, true)
     const list = (await drive(handler, 'GET', '/dsh-sidebar-git/stashes?sessionId=s1')).body
@@ -716,6 +734,10 @@ describe('routes (integration with a real git fixture)', () => {
     assert.equal(confirmed.ok, true)
     const final = (await drive(handler, 'GET', '/dsh-sidebar-git/overview?sessionId=s1')).body
     assert.ok(final.groups.untracked.some((file) => file.path === 'stashme.txt'))
+    const wt = final.groups.worktree.find((file) => file.path === 'alpha.txt')
+    assert.ok(wt !== undefined, 'the popped stash restores the tracked alpha.txt change')
+    assert.equal(!(!wt || wt.xy[1] !== 'M'), true)
+    void wt
   })
 
   it('POST /stash on a clean tree answers NOTHING_TO_COMMIT (git exits 0 with a note)', async () => {
